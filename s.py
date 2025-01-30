@@ -14,6 +14,8 @@ api_hash = os.getenv("API_HASH")
 destination_channel_id = os.getenv("DESTINATION_CHANNEL")  # Укажите ID канала для пересылки
 keywords = os.getenv("KEYWORDS").split(",")  # Ваши ключевые слова
 phone = os.getenv("PHONE")
+excluded_channels = os.getenv("EXCLUDED_CHANNELS")
+stop_words = os.getenv("STOPWORDS","").split(",")
 
 
 def sleep_delay():
@@ -40,14 +42,17 @@ async def main():
             last_post_time = datetime(1970, 1, 1, tzinfo=timezone.utc)  # Если сообщений нет, берём древнюю дату
 
         print(f"Дата последнего поста в целевом канале: {last_post_time}")
-        messages = [] # Список для хранения текстов сообщений, чтобы избежать дублирования
+        messages = []  # Список для хранения текстов сообщений, чтобы избежать дублирования
         async for dialog in client.iter_dialogs():
 
             # Пропускаем канал назначения
             if dialog.id == destination_channel_id:
                 print(f"Пропускаем канал назначения: {dialog.name} (ID: {dialog.id})")
                 continue
-
+            # Пропускаем каналы из списка
+            if str(dialog.id) in excluded_channels:
+                print(f"Пропускаем канал из списка: {dialog.name} (ID: {dialog.id})")
+                continue
             # Обрабатываем только каналы
             if dialog.is_channel and not dialog.is_group:
                 print(f"Читаем канал: {dialog.name} (ID: {dialog.id})")
@@ -65,6 +70,9 @@ async def main():
 
                     # Проверяем ключевые слова
                     if message.text and any(keyword.lower() in message.text.lower() for keyword in keywords):
+                        # Проверяем наличие непроходимых слов
+                        # if not any(stop_word.lower() in message.text.lower() for stop_word in stop_words):
+
                         # Не пересылаем дубликаты
                         if message.text in messages:
                             print("Такое сообщение уже есть в пуле")
